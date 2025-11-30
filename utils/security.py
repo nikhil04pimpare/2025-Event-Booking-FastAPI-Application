@@ -2,6 +2,20 @@
 
 Provides password hashing, JWT token generation/validation, and related
 security functions for the booking application.
+
+Configuration:
+    SECRET_KEY: Secret key for signing JWT tokens. Should be moved to
+                environment variables in production.
+    ALGORITHM: Algorithm used for JWT encoding/decoding (HS256).
+    ACCESS_TOKEN_EXPIRE_MINUTE: Token expiration time in minutes (default: 30).
+    pwd_context: Password hashing context using Argon2 algorithm.
+    CREDENTIALS_EXCEPTION: Standard HTTP exception for authentication failures.
+
+Functions:
+    hash_password: Hash a plain text password using Argon2.
+    verify_password: Verify a plain text password against a hashed password.
+    generate_token: Generate a JWT access token for user authentication.
+    decode_token: Decode and validate a JWT access token.
 """
 
 from datetime import datetime, timedelta, timezone
@@ -25,63 +39,83 @@ CREDENTIALS_EXCEPTION = HTTPException(
 )
 
 
-def hash_password(password: str):
+def hash_password(password: str) -> str:
     """Hash a plain text password using Argon2.
-    
+
+    Converts a plain text password into a secure hashed format using the
+    Argon2 algorithm. This hashed password is stored in the database.
+
     Args:
-        password: Plain text password to hash
-        
+        password: Plain text password to hash (string).
+
     Returns:
-        str: Hashed password
+        str: Hashed password as a string.
     """
     return pwd_context.hash(password)
 
 
-def verify_password(plain_password: str, hashed_password: str):
+def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plain text password against a hashed password.
-    
+
+    Compares a plain text password provided by the user against a previously
+    hashed password stored in the database using Argon2 verification.
+
     Args:
-        plain_password: Plain text password from user
-        hashed_password: Hashed password from database
-        
+        plain_password: Plain text password from user input (string).
+        hashed_password: Hashed password from database (string).
+
     Returns:
-        bool: True if password matches, False otherwise
+        bool: True if password matches, False otherwise.
     """
     return pwd_context.verify(plain_password, hashed_password)
 
 
-def generate_token(email: str):
+def generate_token(email: str) -> str:
     """Generate a JWT access token for user authentication.
-    
+
+    Creates a JWT token containing the user's email and expiration time.
+    The token can be used for subsequent authenticated requests.
+
     Args:
-        email: User's email to encode in token
-        
+        email: User's email to encode in token (string).
+
     Returns:
-        str: Encoded JWT token
+        str: Encoded JWT token as a string.
+
+    Token Payload:
+        sub: User's email (subject claim).
+        exp: Token expiration time (expiration claim).
+        iat: Token issued at time (issued at claim).
     """
     payload = {
         "sub": email,
-        "exp": datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTE),
-        "iat": datetime.now(timezone.utc)
+        "exp": datetime.now(timezone.utc)
+        + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTE),
+        "iat": datetime.now(timezone.utc),
     }
 
-    # Encode JWT with secret key
+    # Encode JWT with secret key using specified algorithm
     encoded_jwt = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
     return encoded_jwt
 
 
-def decode_token(token: str):
+def decode_token(token: str) -> str:
     """Decode and validate a JWT access token.
-    
+
+    Extracts the email from a JWT token and validates its signature and
+    expiration. Raises an exception if the token is invalid, expired, or
+    corrupted.
+
     Args:
-        token: JWT token to decode
-        
+        token: JWT token to decode (string).
+
     Returns:
-        str: Email extracted from token payload
-        
+        str: Email extracted from token payload.
+
     Raises:
-        CREDENTIALS_EXCEPTION: If token is expired, invalid, or corrupted
+        CREDENTIALS_EXCEPTION: If token is expired, has invalid signature,
+                               or is corrupted/malformed.
     """
     try:
         payload = jwt.decode(
@@ -95,6 +129,7 @@ def decode_token(token: str):
 
     except jwt.exceptions.InvalidSignatureError:
         raise CREDENTIALS_EXCEPTION
-        
+
     except jwt.exceptions.PyJWTError:
         raise CREDENTIALS_EXCEPTION
+

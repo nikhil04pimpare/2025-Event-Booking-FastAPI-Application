@@ -4,12 +4,14 @@ A FastAPI-based REST API for managing event bookings with user authentication us
 
 ## Overview
 
-This application provides a complete event booking system with:
-- User registration and authentication
-- JWT-based authorization
+This application provides a comprehensive event booking system with:
+- User registration, authentication, and role-based access control
+- JWT-based authorization with configurable token expiration
 - Event management with availability tracking
+- Secure event booking with inventory management
 - SQLAlchemy ORM with MySQL database integration
 - Secure password hashing using Argon2
+- Comprehensive API documentation via Swagger UI
 
 ## Project Structure
 
@@ -28,38 +30,66 @@ booking-fastapi/
 ## Features
 
 ### Authentication & Security
-- **Password Hashing**: Argon2-based password hashing for secure storage
-- **JWT Tokens**: JWT-based bearer token authentication
+- **Password Hashing**: Argon2-based secure password hashing
+- **JWT Tokens**: Bearer token authentication with configurable expiration
 - **Token Expiration**: Configurable token expiry (default: 30 minutes)
 - **Secure Credentials**: HTTPBearer scheme for token transmission
+- **Role-Based Access Control**: Admin, User, and Public roles
+
+### Event Management
+- **Create Events**: Admin-only endpoint for event creation
+- **Event Listing**: Public access to available events
+- **Event Booking**: User-only endpoint to book event seats
+- **Inventory Tracking**: Automatic availability management
+- **Conflict Prevention**: Prevents overbooking with availability checks
 
 ### Core Models
 
 #### UserModel
 - Unique email-based identification
-- Hashed password storage
-- Role-based access control
+- Hashed password storage using Argon2
+- Role-based access control (Admin, User, Public)
 - Auto-incremented primary key
 
 #### EventsModel
 - Event details (name, venue, date)
-- Available slots tracking
-- Time-aware event scheduling
+- Available slots/inventory tracking
+- Primary key identification
 
 ### API Endpoints
 
-#### User Management
-- **POST `/users`**: Create a new user account
-  - Request: `User` schema (name, email, password, role)
-  - Response: Created `UserModel`
-
+#### Authentication Endpoints
 - **POST `/login`**: Authenticate and obtain JWT token
   - Request: `UserLogin` schema (email, password)
   - Response: `Token` schema (access_token, token_type)
+  - No authentication required
+
+#### User Endpoints
+- **POST `/users`**: Create a new user account
+  - Request: `User` schema (name, email, password, role)
+  - Response: Created `UserModel`
+  - No authentication required
 
 - **GET `/users/me`**: Get current authenticated user information
   - Headers: Bearer token required
   - Response: User details with welcome message
+  - Authentication required
+
+#### Event Endpoints
+- **POST `/events`**: Create a new event (Admin only)
+  - Request: `Events` schema (name, venue, date, availability)
+  - Response: Created `EventsModel`
+  - Authentication required (Admin role)
+
+- **GET `/events`**: Retrieve all available events
+  - Response: List of `EventResponse` objects
+  - No authentication required
+
+- **POST `/events/{event_id}/book`**: Book seats for an event (User only)
+  - Path Parameter: `event_id` (integer)
+  - Query Parameter: `seats` (integer)
+  - Response: Updated `EventBookResponse`
+  - Authentication required (User role)
 
 ## Data Models
 
@@ -248,7 +278,7 @@ docker-compose ps
 
 ### Example API Calls
 
-**Create User:**
+#### Create User:
 ```bash
 curl -X POST "http://localhost:8000/users" \
   -H "Content-Type: application/json" \
@@ -260,7 +290,7 @@ curl -X POST "http://localhost:8000/users" \
   }'
 ```
 
-**Login:**
+#### Login:
 ```bash
 curl -X POST "http://localhost:8000/login" \
   -H "Content-Type: application/json" \
@@ -270,10 +300,42 @@ curl -X POST "http://localhost:8000/login" \
   }'
 ```
 
-**Get Current User:**
+Response:
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer"
+}
+```
+
+#### Get Current User:
 ```bash
 curl -X GET "http://localhost:8000/users/me" \
   -H "Authorization: Bearer <your_jwt_token>"
+```
+
+#### Create Event (Admin):
+```bash
+curl -X POST "http://localhost:8000/events" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <admin_jwt_token>" \
+  -d '{
+    "event_name": "Tech Conference 2025",
+    "event_venue": "Convention Center",
+    "event_date": "2025-12-15T09:00:00",
+    "event_availibility": 100
+  }'
+```
+
+#### Get All Events:
+```bash
+curl -X GET "http://localhost:8000/events"
+```
+
+#### Book Event (User):
+```bash
+curl -X POST "http://localhost:8000/events/1/book?seats=2" \
+  -H "Authorization: Bearer <user_jwt_token>"
 ```
 
 ## Security Considerations
@@ -357,16 +419,18 @@ pytest
 
 ## Future Enhancements
 
-- [ ] Event booking endpoints
-- [ ] User profile management
-- [ ] Event search and filtering
-- [ ] Pagination support
-- [ ] Rate limiting
-- [ ] Request logging and monitoring
-- [ ] Email verification
+- [ ] User profile management and updates
+- [ ] Event search and filtering by date/venue
+- [ ] Pagination support for large event lists
+- [ ] Booking history and cancellation endpoints
+- [ ] Email verification for new users
 - [ ] Password reset functionality
-- [ ] Role-based access control (RBAC)
-- [ ] API documentation with examples
+- [ ] Rate limiting to prevent abuse
+- [ ] Request logging and monitoring
+- [ ] API usage analytics and metrics
+- [ ] Automated booking confirmation emails
+- [ ] Multi-language support
+- [ ] Advanced role permissions system
 
 ## Troubleshooting
 

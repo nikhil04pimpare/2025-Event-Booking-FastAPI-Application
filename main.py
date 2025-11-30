@@ -4,33 +4,61 @@ This module provides API endpoints for user registration, login, and retrieving
 current user information. It implements JWT-based authentication and authorization.
 """
 
-from fastapi import FastAPI, Depends, HTTPException
+from typing import List
+from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from database import engine, get_db, Base
 from model import UserModel, EventsModel
-from schema import Token, User, Events, UserLogin
-from utils.security import CREDENTIALS_EXCEPTION, decode_token, generate_token, hash_password, verify_password
+from schema import (
+    EventBookResponse,
+    EventResponse,
+    Token,
+    User,
+    Events,
+    UserLogin,
+    UserRole,
+)
+from utils.security import (
+    CREDENTIALS_EXCEPTION,
+    decode_token,
+    generate_token,
+    hash_password,
+    verify_password,
+)
 
 Base.metadata.create_all(bind=engine)
 oauth2_scheme = HTTPBearer()
 
-app = FastAPI()
+app = FastAPI(
+    title="Event Booking API",
+    description="A FastAPI application for event booking with user authentication",
+    version="1.0.0",
+)
 
 
-def get_current_user(token: HTTPAuthorizationCredentials = Depends(oauth2_scheme), db_session: Session = Depends(get_db)):
+# ==================== Dependency Functions ====================
+
+
+def get_current_user(
+    token: HTTPAuthorizationCredentials = Depends(oauth2_scheme),
+    db_session: Session = Depends(get_db),
+) -> UserModel:
     """Extract and validate current user from JWT token.
-    
+
+    This function extracts the email from the JWT token and retrieves the
+    corresponding user from the database.
+
     Args:
-        token: HTTP Bearer token from request headers
-        db_session: Database session dependency
-        
+        token: HTTP Bearer token from request headers.
+        db_session: Database session dependency.
+
     Returns:
-        UserModel: Authenticated user object
-        
+        UserModel: Authenticated user object.
+
     Raises:
-        CREDENTIALS_EXCEPTION: If token is invalid or user not found
+        CREDENTIALS_EXCEPTION: If token is invalid or user not found.
     """
     email = decode_token(token.credentials)
 
@@ -42,59 +70,58 @@ def get_current_user(token: HTTPAuthorizationCredentials = Depends(oauth2_scheme
     return current_user
 
 
-@app.get("/users/me")
-def read_current_user(current_user: UserModel = Depends(get_current_user)):
-    """Retrieve current authenticated user's information.
-    
-    Args:
-        current_user: Authenticated user from token
-        
-    Returns:
-        dict: User's name, ID, email, and role information
-    """
-    return {
-        "message": f"Welcome back, {current_user.name}! You are logged in with role: {current_user.role}",
-        "user_id": current_user.id,
-        "email": current_user.email
-    }
+# ==================== Authentication Endpoints ====================
 
 
-@app.post("/login", response_model=Token)
-def validate_user(user_info: UserLogin, db_session: Session = Depends(get_db)):
+@app.post("/login", response_model=Token, tags=["Authentication"])
+def validate_user(
+    user_info: UserLogin, db_session: Session = Depends(get_db)
+) -> Token:
     """Authenticate user and generate JWT access token.
-    
+
+    Validates user credentials against the database and generates a JWT token
+    for authenticated requests.
+
     Args:
-        user_info: User login credentials (email and password)
-        db_session: Database session dependency
-        
+        user_info: User login credentials (email and password).
+        db_session: Database session dependency.
+
     Returns:
-        Token: JWT access token and token type
-        
+        Token: JWT access token and token type.
+
     Raises:
-        HTTPException: If user not found or password incorrect
+        HTTPException: If user not found or password is incorrect.
     """
-    current_user = db_session.query(UserModel).filter(UserModel.email == user_info.email).first()
+    current_user = (
+        db_session.query(UserModel).filter(UserModel.email == user_info.email).first()
+    )
 
     if not current_user:
         raise HTTPException(status_code=401, detail="User not found")
 
     if not verify_password(user_info.password, current_user.password):
         raise HTTPException(status_code=401, detail="Incorrect Password")
-    
+
     jwt_token = generate_token(user_info.email)
-    return {"access_token":jwt_token, "token_type":"bearer"}
+    return {"access_token": jwt_token, "token_type": "bearer"}
 
 
-@app.post("/users")
-def create_user(user: User, db_session: Session = Depends(get_db)):
+# ==================== User Endpoints ====================
+
+
+@app.post("/users", tags=["Users"])
+def create_user(user: User, db_session: Session = Depends(get_db)) -> UserModel:
     """Create a new user account.
-    
+
+    Registers a new user with the provided details. Password is automatically
+    hashed before being stored in the database.
+
     Args:
-        user: User registration data (name, email, password, role)
-        db_session: Database session dependency
-        
+        user: User registration data (name, email, password, role).
+        db_session: Database session dependency.
+
     Returns:
-        UserModel: Newly created user object
+        UserModel: Newly created user object.
     """
     new_user = UserModel(**user.model_dump())
 
@@ -105,3 +132,136 @@ def create_user(user: User, db_session: Session = Depends(get_db)):
     db_session.refresh(new_user)
 
     return new_user
+
+
+@app.get("/users/me", tags=["Users"])
+def read_current_user(
+    current_user: UserModel = Depends(get_current_user),
+) -> dict:
+    """Retrieve current authenticated user's information.
+
+    Returns detailed information about the authenticated user, including
+    name, email, ID, and assigned role.
+
+    Args:
+        current_user: Authenticated user from token.
+
+    Returns:
+        dict: User's name, ID, email, and role information.
+    """
+    return {
+        "message": f"Welcome back, {current_user.name}! You are logged in with role: {current_user.role}",
+        "user_id": current_user.id,
+        "email": current_user.email,
+    }
+
+
+# ==================== Event Endpoints ====================
+
+
+@app.post("/events", tags=["Events"])
+def create_event(
+    event: Events,
+    db_session: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+) -> EventsModel:
+    """Create a new event.
+
+    Only users with ADMIN role can create new events. The event includes
+    details such as name, venue, date, and available slots.
+
+    Args:
+        event: Event details (name, venue, date, availability).
+        db_session: Database session dependency.
+        current_user: Authenticated user from token.
+
+    Returns:
+        EventsModel: Newly created event object.
+
+    Raises:
+        HTTPException: If user is not authorized to create events.
+    """
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to create event. Must be an Admin",
+        )
+    new_event = EventsModel(**event.model_dump())
+    db_session.add(new_event)
+    db_session.commit()
+    db_session.refresh(new_event)
+    return new_event
+
+
+@app.get("/events", response_model=List[EventResponse], tags=["Events"])
+def get_events(db_session: Session = Depends(get_db)) -> List[EventResponse]:
+    """Retrieve all available events.
+
+    Returns a list of all events in the system, including details such as
+    name, venue, date, and available slots.
+
+    Args:
+        db_session: Database session dependency.
+
+    Returns:
+        List[EventResponse]: List of all events.
+
+    Raises:
+        HTTPException: If no events are found.
+    """
+    events = db_session.query(EventsModel).all()
+    if not events:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="No events found."
+        )
+    return events
+
+
+@app.post("/events/{event_id}/book", response_model=EventBookResponse, tags=["Events"])
+def book_event(
+    event_id: int,
+    seats: int,
+    db_session: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+) -> EventBookResponse:
+    """Book seats for an event.
+
+    Allows authenticated users to book available seats for an event. The
+    system checks availability and updates the event's available slots.
+
+    Args:
+        event_id: The ID of the event to book.
+        seats: Number of seats to book.
+        db_session: Database session dependency.
+        current_user: Authenticated user from token.
+
+    Returns:
+        EventBookResponse: Updated event details after booking.
+
+    Raises:
+        HTTPException: If user is not authorized, event not found, or
+                       insufficient seats available.
+    """
+    if current_user.role != UserRole.USER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to book event. Must be a User",
+        )
+    event = (
+        db_session.query(EventsModel).filter(EventsModel.event_id == event_id).first()
+    )
+    if not event:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No event found. Check event details.",
+        )
+    if event.event_availibility > 0 and event.event_availibility - seats >= 0:
+        event.event_availibility = event.event_availibility - seats
+        db_session.commit()
+        db_session.refresh(event)
+        return event
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Not able to book event due to lack of availibility",
+        )

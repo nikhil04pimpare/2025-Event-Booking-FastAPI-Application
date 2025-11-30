@@ -1,0 +1,25 @@
+[project]
+name = "booking-fastapi-app"
+version = "0.1.0"
+description = "A FastAPI booking application."
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "pydantic",
+    "sqlalchemy",
+    "passlib[argon2]",
+    "pyjwt",
+    "pymysql",
+]
+
+[build-system]
+requires = ["setuptools>=61.0.0"]
+build-backend = "setuptools.build_meta"
+
+# =======================================================
+# FIX: Explicitly list modules for setuptools to resolve 
+# the "Multiple top-level modules" error during editable install.
+# =======================================================
+[tool.setuptools]
+# This lists your main .py files (without the .py extension)
+py-modules = ["main", "database", "model", "schema"]
