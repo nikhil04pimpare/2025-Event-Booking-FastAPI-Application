@@ -134,7 +134,7 @@ token_type: str  # "bearer"
 
 1. **Clone or navigate to project directory**
 ```bash
-cd booking-fastapi
+cd booking-fastapi-backend
 ```
 
 2. **Start Docker containers**
@@ -172,7 +172,7 @@ python -c "from database import engine, Base; Base.metadata.create_all(bind=engi
 
 1. **Clone or navigate to project directory**
 ```bash
-cd booking-fastapi
+cd booking-fastapi-backend
 ```
 
 2. **Ensure MySQL is running**
