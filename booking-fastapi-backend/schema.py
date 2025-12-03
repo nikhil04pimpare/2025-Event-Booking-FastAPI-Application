@@ -16,9 +16,10 @@ Classes:
     EventBookResponse: Event booking response schema with ORM mapping.
 """
 
-from enum import Enum
-from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
+from enum import Enum
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class UserRole(Enum):
@@ -66,6 +67,28 @@ class UserLogin(BaseModel):
 
     email: str
     password: str
+
+
+class UserResponse(BaseModel):
+    """User response schema including the primary key.
+
+    Used for returning user details in API responses. Includes user
+    information with ORM model mapping for automatic attribute conversion.
+
+    Attributes:
+        id: Primary key of the user (integer).
+        name: User's full name (string).
+        email: User's email address (string).
+        role: User's role in the system (UserRole enum).
+    """
+
+    id: int
+    name: str
+    email: str
+    role: UserRole
+
+    # Configuration for mapping ORM model attributes to schema
+    model_config = ConfigDict(from_attributes=True)
 
 
 class Token(BaseModel):
@@ -147,4 +170,16 @@ class EventBookResponse(BaseModel):
     event_availibility: int
 
     # Configuration for mapping ORM model attributes to schema
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BookingResponse(BaseModel):
+    """Response schema for a booking record."""
+
+    id: int
+    user_id: int
+    event_id: int
+    seats_booked: int
+    booking_time: datetime
+
     model_config = ConfigDict(from_attributes=True)

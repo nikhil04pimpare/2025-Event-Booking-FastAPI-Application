@@ -10,9 +10,10 @@ Configuration:
     Base: Declarative base class for ORM model definitions.
 """
 
+from collections.abc import Generator
+
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session, declarative_base
-from typing import Generator
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 # Placeholder - replace with actual database credentials
 DB_URL = "mysql+pymysql://api_user:api_password@localhost:3306/task_db"
@@ -23,6 +24,7 @@ SessionLocal = sessionmaker(autoflush=False, autocommit=False, bind=engine)
 
 # SQLAlchemy declarative base for model definitions
 Base = declarative_base()
+
 
 def get_db() -> Generator[Session, None, None]:
     """Dependency injection function for database session.

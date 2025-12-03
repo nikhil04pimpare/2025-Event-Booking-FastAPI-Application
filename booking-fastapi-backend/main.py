@@ -1,23 +1,31 @@
 """FastAPI application for event booking system with user authentication.
 
-This module provides API endpoints for user registration, login, and retrieving
-current user information. It implements JWT-based authentication and authorization.
+This module provides API endpoints for user registration, login, event management,
+event booking, and admin booking tracking. It implements JWT-based authentication
+and authorization with role-based access control (Admin, User, Public).
+
+Endpoints:
+    Authentication: /login
+    Users: /users, /users/me
+    Events: /events (create, list, book)
+    Admin: /admin/bookings (view all bookings)
 """
 
-from typing import List
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
-from database import engine, get_db, Base
-from model import UserModel, EventsModel
+from database import Base, engine, get_db
+from model import BookingModel, EventsModel, UserModel
 from schema import (
+    BookingResponse,
     EventBookResponse,
     EventResponse,
+    Events,
     Token,
     User,
-    Events,
     UserLogin,
+    UserResponse,
     UserRole,
 )
 from utils.security import (
@@ -74,9 +82,7 @@ def get_current_user(
 
 
 @app.post("/login", response_model=Token, tags=["Authentication"])
-def validate_user(
-    user_info: UserLogin, db_session: Session = Depends(get_db)
-) -> Token:
+def validate_user(user_info: UserLogin, db_session: Session = Depends(get_db)) -> Token:
     """Authenticate user and generate JWT access token.
 
     Validates user credentials against the database and generates a JWT token
@@ -92,9 +98,7 @@ def validate_user(
     Raises:
         HTTPException: If user not found or password is incorrect.
     """
-    current_user = (
-        db_session.query(UserModel).filter(UserModel.email == user_info.email).first()
-    )
+    current_user = db_session.query(UserModel).filter(UserModel.email == user_info.email).first()
 
     if not current_user:
         raise HTTPException(status_code=401, detail="User not found")
@@ -109,8 +113,8 @@ def validate_user(
 # ==================== User Endpoints ====================
 
 
-@app.post("/users", tags=["Users"])
-def create_user(user: User, db_session: Session = Depends(get_db)) -> UserModel:
+@app.post("/users", response_model=UserResponse, tags=["Users"])
+def create_user(user: User, db_session: Session = Depends(get_db)):
     """Create a new user account.
 
     Registers a new user with the provided details. Password is automatically
@@ -121,7 +125,7 @@ def create_user(user: User, db_session: Session = Depends(get_db)) -> UserModel:
         db_session: Database session dependency.
 
     Returns:
-        UserModel: Newly created user object.
+        UserResponse: Newly created user object.
     """
     new_user = UserModel(**user.model_dump())
 
@@ -159,12 +163,12 @@ def read_current_user(
 # ==================== Event Endpoints ====================
 
 
-@app.post("/events", tags=["Events"])
+@app.post("/events", response_model=EventResponse, tags=["Events"])
 def create_event(
     event: Events,
     db_session: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
-) -> EventsModel:
+):
     """Create a new event.
 
     Only users with ADMIN role can create new events. The event includes
@@ -176,7 +180,7 @@ def create_event(
         current_user: Authenticated user from token.
 
     Returns:
-        EventsModel: Newly created event object.
+        EventResponse: Newly created event object.
 
     Raises:
         HTTPException: If user is not authorized to create events.
@@ -193,8 +197,8 @@ def create_event(
     return new_event
 
 
-@app.get("/events", response_model=List[EventResponse], tags=["Events"])
-def get_events(db_session: Session = Depends(get_db)) -> List[EventResponse]:
+@app.get("/events", response_model=list[EventResponse], tags=["Events"])
+def get_events(db_session: Session = Depends(get_db)):
     """Retrieve all available events.
 
     Returns a list of all events in the system, including details such as
@@ -211,9 +215,7 @@ def get_events(db_session: Session = Depends(get_db)) -> List[EventResponse]:
     """
     events = db_session.query(EventsModel).all()
     if not events:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="No events found."
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No events found.")
     return events
 
 
@@ -223,7 +225,7 @@ def book_event(
     seats: int,
     db_session: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
-) -> EventBookResponse:
+):
     """Book seats for an event.
 
     Allows authenticated users to book available seats for an event. The
@@ -247,9 +249,7 @@ def book_event(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to book event. Must be a User",
         )
-    event = (
-        db_session.query(EventsModel).filter(EventsModel.event_id == event_id).first()
-    )
+    event = db_session.query(EventsModel).filter(EventsModel.event_id == event_id).first()
     if not event:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -265,3 +265,36 @@ def book_event(
             status_code=status.HTTP_409_CONFLICT,
             detail="Not able to book event due to lack of availibility",
         )
+
+
+@app.get("/admin/bookings", response_model=list[BookingResponse], tags=["Admin"])
+def get_admin_bookings(
+    db_session: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    """Retrieve all booking records (Admin only).
+
+    Allows administrators to view all booking transactions in the system.
+    Returns detailed information about each booking including user, event,
+    seats booked, and booking timestamp.
+
+    Args:
+        db_session: Database session dependency.
+        current_user: Authenticated user from token.
+
+    Returns:
+        List[BookingResponse]: List of all booking records.
+
+    Raises:
+        HTTPException: If user is not authorized (must be Admin) or
+                       no bookings are found in the system.
+    """
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to check bookings. Must be an Admin",
+        )
+    bookings = db_session.query(BookingModel).all()
+    if not bookings:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No Bookings found.")
+    return bookings

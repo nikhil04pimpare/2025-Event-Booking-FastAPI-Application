@@ -8,9 +8,9 @@ Classes:
     EventsModel: Represents an event that can be booked by users.
 """
 
-from sqlalchemy import Column, Enum, Integer, String, Date
-from database import Base
+from sqlalchemy import Column, Date, DateTime, Enum, ForeignKey, Integer, String
 
+from database import Base
 from schema import UserRole
 
 
@@ -57,3 +57,27 @@ class EventsModel(Base):
     event_venue = Column(String(255))
     event_date = Column(Date)
     event_availibility = Column(Integer)
+
+
+class BookingModel(Base):
+    """Booking database model.
+
+    Tracks confirmed ticket reservations, linking a specific user to an event
+    and recording the quantity of seats purchased. This model forms the basis
+    for the admin tracking system.
+
+    Attributes:
+        id: Primary key, auto-incremented integer.
+        user_id: Foreign Key linking to the unique ID of the UserModel (the user who made the booking).
+        event_id: Foreign Key linking to the event_id of the EventsModel (the event that was booked).
+        seats_booked: The number of seats or tickets reserved in this single transaction.
+        booking_time: Timestamp recording when the booking was successfully created.
+    """
+
+    __tablename__ = "Bookings"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("User.id"))
+    event_id = Column(Integer, ForeignKey("Events.event_id"))
+    seats_booked = Column(Integer)
+    booking_time = Column(DateTime)

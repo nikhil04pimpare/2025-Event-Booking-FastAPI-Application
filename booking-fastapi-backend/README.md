@@ -91,6 +91,11 @@ booking-fastapi/
   - Response: Updated `EventBookResponse`
   - Authentication required (User role)
 
+- **GET `/admin/bookings`**: Retrieve all booking records (Admin only)
+  - Response: List of `BookingResponse` objects
+  - Authentication required (Admin role)
+  - Returns all confirmed bookings in the system with booking details
+
 ## Data Models
 
 ### Schemas (Pydantic)
@@ -121,6 +126,15 @@ password: str
 ```python
 access_token: str
 token_type: str  # "bearer"
+```
+
+**BookingResponse** - Booking record response
+```python
+id: int  # Primary key
+user_id: int  # Foreign key to User
+event_id: int  # Foreign key to Events
+seats_booked: int  # Number of seats booked
+booking_time: datetime  # Timestamp of booking
 ```
 
 ## Installation
@@ -338,6 +352,25 @@ curl -X POST "http://localhost:8000/events/1/book?seats=2" \
   -H "Authorization: Bearer <user_jwt_token>"
 ```
 
+#### Get All Bookings (Admin):
+```bash
+curl -X GET "http://localhost:8000/admin/bookings" \
+  -H "Authorization: Bearer <admin_jwt_token>"
+```
+
+Response:
+```json
+[
+  {
+    "id": 1,
+    "user_id": 2,
+    "event_id": 1,
+    "seats_booked": 2,
+    "booking_time": "2025-12-04T15:30:45.123456"
+  }
+]
+```
+
 ## Security Considerations
 
 1. **Password Storage**: Passwords are hashed using Argon2 and never stored in plain text
@@ -392,6 +425,19 @@ CREATE TABLE Events (
 );
 ```
 
+### Bookings Table
+```sql
+CREATE TABLE Bookings (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  event_id INT NOT NULL,
+  seats_booked INT,
+  booking_time DATETIME,
+  FOREIGN KEY (user_id) REFERENCES User(id),
+  FOREIGN KEY (event_id) REFERENCES Events(event_id)
+);
+```
+
 ## Token Structure
 
 JWT token payload includes:
@@ -409,6 +455,315 @@ JWT token payload includes:
 - **python-jose**: JWT token handling
 - **pydantic**: Data validation and serialization
 - **uvicorn**: ASGI server
+
+### Development Dependencies
+- **black**: Code formatter (enforces consistent style)
+- **isort**: Import statement organizer
+- **ruff**: Fast Python linter
+- **mypy**: Static type checker
+- **pytest**: Testing framework
+- **bandit**: Security vulnerability scanner
+- **pre-commit**: Git hooks framework
+
+## Testing
+
+Run tests with pytest:
+```bash
+pytest
+```
+
+## Code Quality Tools
+
+This project includes industry-standard linting and formatting tools to maintain clean, consistent code.
+
+### Installed Tools
+
+1. **Black** - Opinionated code formatter
+   - Enforces consistent code style
+   - Automatically fixes formatting issues
+   - Line length: 100 characters
+
+2. **isort** - Import statement organizer
+   - Sorts imports alphabetically
+   - Organizes imports into groups (stdlib, third-party, local)
+   - Black-compatible configuration
+
+3. **Ruff** - Fast Python linter
+   - Detects code issues and bugs
+   - Enforces PEP 8 style guidelines
+   - Supports auto-fixing of certain issues
+
+4. **Bandit** - Security vulnerability scanner
+   - Identifies common security issues
+   - Checks for unsafe code patterns
+   - Runs on all commits via pre-commit
+
+5. **Mypy** - Static type checker (optional)
+   - Validates type annotations
+   - Catches type-related bugs early
+
+### Using the Tools
+
+#### Quick Setup (Recommended)
+
+**On Linux/macOS:**
+```bash
+make dev
+```
+
+**On Windows (Command Prompt or PowerShell):**
+```bash
+.\dev.bat dev
+```
+
+This will:
+- Install all dependencies
+- Install pre-commit hooks
+- Set up git integration
+
+#### Manual Installation
+```bash
+# Install individual tools
+pip install black isort ruff mypy bandit pre-commit
+
+# Set up pre-commit hooks
+pre-commit install
+```
+
+#### Running Quality Checks
+
+**Format code automatically:**
+
+Linux/macOS:
+```bash
+make format
+```
+
+Windows:
+```bash
+.\dev.bat format
+```
+
+Or run individually:
+```bash
+black .              # Format code
+isort .              # Sort imports
+```
+
+**Run linting:**
+
+Linux/macOS:
+```bash
+make lint
+```
+
+Windows:
+```bash
+.\dev.bat lint
+```
+
+Or run directly:
+```bash
+ruff check . --fix
+```
+
+**Type checking:**
+
+Linux/macOS:
+```bash
+make type-check
+```
+
+Windows:
+```bash
+.\dev.bat typecheck
+```
+
+Or run directly:
+```bash
+mypy .
+```
+
+**Run all quality checks:**
+
+Linux/macOS:
+```bash
+make quality
+```
+
+Windows:
+```bash
+.\dev.bat quality
+```
+
+**Run pre-commit on all files:**
+
+Linux/macOS:
+```bash
+make pre-commit-run
+```
+
+Windows:
+```bash
+.\dev.bat precommitrun
+```
+
+Or run directly:
+```bash
+pre-commit run --all-files
+```
+
+### Available Commands
+
+**Makefile (Linux/macOS):**
+```bash
+make help              # Show all available commands
+make dev               # Full setup
+make install           # Install dependencies
+make format            # Format code
+make lint              # Run linter
+make type-check        # Type check
+make quality           # All checks
+make test              # Run tests
+make clean             # Clean cache
+make pre-commit-*      # Pre-commit commands
+```
+
+**Batch File (Windows):**
+```bash
+.\dev.bat help                 # Show all available commands
+.\dev.bat dev                  # Full setup
+.\dev.bat install              # Install dependencies
+.\dev.bat format               # Format code
+.\dev.bat lint                 # Run linter
+.\dev.bat typecheck            # Type check
+.\dev.bat quality              # All checks
+.\dev.bat test                 # Run tests
+.\dev.bat clean                # Clean cache
+.\dev.bat precommitinstall     # Install hooks
+.\dev.bat precommitrun         # Run pre-commit
+```
+
+### Pre-commit Hooks
+
+Pre-commit automatically runs quality checks before each commit, preventing bad code from being committed.
+
+**Hooks that run automatically:**
+- Trailing whitespace removal
+- End-of-file fixer
+- YAML/JSON syntax validation
+- Large file detection
+- Merge conflict checks
+- Black formatter
+- isort import sorter
+- Ruff linter
+- Bandit security scanner
+
+**Example workflow:**
+```bash
+# Make changes to code
+git add .
+
+# Commit - pre-commit hooks run automatically
+git commit -m "Add new feature"
+
+# If hooks find issues:
+# - Auto-fixable issues are fixed
+# - You need to re-stage and commit
+git add .
+git commit -m "Add new feature"
+```
+
+### Configuration Files
+
+**pyproject.toml** - Tool configurations
+```toml
+[tool.black]
+line-length = 100
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.ruff]
+line-length = 100
+select = ["E", "W", "F", "I", "N", "UP", "B", "C4", "SIM"]
+```
+
+**.pre-commit-config.yaml** - Git hook definitions
+- Defines which tools run before each commit
+- Automatically installed with `pre-commit install`
+
+**Makefile** - Convenience commands
+- Provides easy shortcuts for common tasks
+- Run `make help` to see all available commands
+
+### Best Practices
+
+1. **Format before committing**
+
+   Linux/macOS:
+   ```bash
+   make quality
+   git add .
+   git commit -m "message"
+   ```
+
+   Windows:
+   ```bash
+   .\dev.bat quality
+   git add .
+   git commit -m "message"
+   ```
+
+2. **Use IDE integration** (Optional)
+   - VS Code: Install Black Formatter and isort extensions
+   - PyCharm: Built-in Black and isort support
+
+3. **Pre-commit prevents bad commits**
+   - Hooks automatically fix format/import issues
+   - Some issues require manual intervention
+
+4. **Fix issues early**
+
+   Linux/macOS:
+   ```bash
+   make quality
+   ```
+
+   Windows:
+   ```bash
+   .\dev.bat quality
+   ```
+   - Run regularly during development
+   - Don't let issues accumulate
+
+### Troubleshooting
+
+**Black conflicts with editor formatting:**
+```bash
+# Configure your editor to use Black
+# VS Code: Set Python formatting provider to "black"
+```
+
+**Pre-commit hook installation failed:**
+```bash
+# Reinstall pre-commit
+pip install --force-reinstall pre-commit
+pre-commit install
+```
+
+**isort and Black conflicts:**
+```bash
+# Already configured in pyproject.toml (Black-compatible)
+# Just run: make quality
+```
+
+**Ruff auto-fix didn't work:**
+```bash
+# Some issues require manual fixing
+# Check the error messages: ruff check .
+```
 
 ## Testing
 

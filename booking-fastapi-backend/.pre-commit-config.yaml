@@ -1,0 +1,61 @@
+# Pre-commit hooks configuration
+# Automatically run linting and formatting checks before committing code
+
+repos:
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        name: Trim trailing whitespace
+      - id: end-of-file-fixer
+        name: Fix end of file
+      - id: check-yaml
+        name: Check YAML syntax
+      - id: check-json
+        name: Check JSON syntax
+      - id: check-added-large-files
+        name: Check for large files
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict
+        name: Check for merge conflicts
+      - id: debug-statements
+        name: Check for debug statements
+
+  # Black - Code formatter
+  - repo: https://github.com/psf/black
+    rev: 23.12.1
+    hooks:
+      - id: black
+        name: Black formatter
+        language_version: python3.13
+        args: ['--line-length=100']
+
+  # isort - Import sorting
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        name: isort (import sorter)
+        args: ['--profile', 'black', '--line-length', '100']
+
+  # Ruff - Fast Python linter
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.9
+    hooks:
+      - id: ruff
+        name: Ruff linter
+        args: ['--line-length=100', '--fix']
+      - id: ruff-format
+        name: Ruff formatter
+        args: ['--line-length=100']
+
+  # Bandit - Security checks
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.5
+    hooks:
+      - id: bandit
+        name: Bandit (security checks)
+        exclude: tests/
+        args: ['-ll']  # Only show medium/high severity issues
+        additional_dependencies: ['pbr']

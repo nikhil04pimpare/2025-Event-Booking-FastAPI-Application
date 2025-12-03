@@ -18,10 +18,10 @@ Functions:
     decode_token: Decode and validate a JWT access token.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-from fastapi import HTTPException, status
 import jwt
+from fastapi import HTTPException, status
 from passlib.context import CryptContext
 
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
@@ -89,9 +89,8 @@ def generate_token(email: str) -> str:
     """
     payload = {
         "sub": email,
-        "exp": datetime.now(timezone.utc)
-        + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTE),
-        "iat": datetime.now(timezone.utc),
+        "exp": datetime.now(UTC) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTE),
+        "iat": datetime.now(UTC),
     }
 
     # Encode JWT with secret key using specified algorithm
@@ -125,11 +124,10 @@ def decode_token(token: str) -> str:
         )
         return payload.get("sub")
     except jwt.exceptions.ExpiredSignatureError:
-        raise CREDENTIALS_EXCEPTION
+        raise CREDENTIALS_EXCEPTION from None
 
     except jwt.exceptions.InvalidSignatureError:
-        raise CREDENTIALS_EXCEPTION
+        raise CREDENTIALS_EXCEPTION from None
 
     except jwt.exceptions.PyJWTError:
-        raise CREDENTIALS_EXCEPTION
-
+        raise CREDENTIALS_EXCEPTION from None
