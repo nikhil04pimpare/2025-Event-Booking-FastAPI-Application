@@ -15,26 +15,17 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
-from database import Base, engine, get_db
-from model import BookingModel, EventsModel, UserModel
-from schema import (
-    BookingResponse,
-    EventBookResponse,
-    EventResponse,
-    Events,
-    Token,
-    User,
-    UserLogin,
-    UserResponse,
-    UserRole,
-)
-from utils.security import (
+from app.core.database import Base, engine, get_db
+from app.core.security import (
     CREDENTIALS_EXCEPTION,
     decode_token,
     generate_token,
     hash_password,
     verify_password,
 )
+from app.models.models import BookingModel, EventsModel, UserModel
+from app.schemas.booking import BookingResponse, EventBookResponse, EventResponse, Events
+from app.schemas.user import Token, User, UserLogin, UserResponse, UserRole
 
 Base.metadata.create_all(bind=engine)
 oauth2_scheme = HTTPBearer()

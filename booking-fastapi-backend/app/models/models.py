@@ -1,17 +1,18 @@
 """SQLAlchemy ORM models for database tables.
 
-Defines UserModel and EventsModel as SQLAlchemy ORM models that represent
-the User and Events tables in the MySQL database.
+Defines UserModel, EventsModel, and BookingModel as SQLAlchemy ORM models
+that represent the User, Events, and Bookings tables in the MySQL database.
 
 Classes:
     UserModel: Represents a user in the system with authentication details.
     EventsModel: Represents an event that can be booked by users.
+    BookingModel: Represents a booking transaction linking user to event.
 """
 
 from sqlalchemy import Column, Date, DateTime, Enum, ForeignKey, Integer, String, func
 
-from database import Base
-from schema import UserRole
+from app.core.database import Base
+from app.schemas.user import UserRole
 
 
 class UserModel(Base):

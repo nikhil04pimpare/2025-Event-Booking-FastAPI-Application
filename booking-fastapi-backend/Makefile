@@ -13,8 +13,8 @@ help:
 	@echo "  make pre-commit-run       - Run pre-commit on all files"
 
 install:
-	pip install -e .
-	pip install black isort ruff mypy pytest bandit
+	uv sync
+	uv pip install black isort ruff mypy pytest bandit
 
 format:
 	black .

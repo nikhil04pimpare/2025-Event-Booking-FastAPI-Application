@@ -43,8 +43,8 @@ goto end
 
 :install
 echo Installing dependencies...
-pip install -e .
-pip install black isort ruff mypy pytest bandit pre-commit
+uv sync
+uv pip install black isort ruff mypy pytest bandit pre-commit
 echo ✅ Dependencies installed!
 goto end
 
