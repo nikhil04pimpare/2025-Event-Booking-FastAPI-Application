@@ -259,6 +259,17 @@ def book_event(
         event.event_availibility = event.event_availibility - seats
         db_session.commit()
         db_session.refresh(event)
+
+        # Create booking record with remaining tickets after this booking
+        booking = BookingModel(
+            user_id=current_user.id,
+            event_id=event.event_id,
+            seats_booked=seats,
+            remaining_tickets=event.event_availibility,
+        )
+        db_session.add(booking)
+        db_session.commit()
+
         return event
     else:
         raise HTTPException(

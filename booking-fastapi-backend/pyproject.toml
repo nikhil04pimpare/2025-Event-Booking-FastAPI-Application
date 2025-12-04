@@ -10,6 +10,7 @@ dependencies = [
     "passlib[argon2]",
     "pyjwt",
     "pymysql",
+    "cryptography",
 ]
 
 [build-system]

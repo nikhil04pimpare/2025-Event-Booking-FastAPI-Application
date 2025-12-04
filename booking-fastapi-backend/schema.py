@@ -174,12 +174,25 @@ class EventBookResponse(BaseModel):
 
 
 class BookingResponse(BaseModel):
-    """Response schema for a booking record."""
+    """Response schema for a booking record.
+
+    Includes booking details with user, event, seats booked, remaining tickets
+    after booking, and booking timestamp.
+
+    Attributes:
+        id: Primary key of the booking (integer).
+        user_id: ID of the user who made the booking (integer).
+        event_id: ID of the event that was booked (integer).
+        seats_booked: Number of seats booked in this transaction (integer).
+        remaining_tickets: Number of tickets still available after this booking (integer).
+        booking_time: Timestamp of when the booking was made (datetime).
+    """
 
     id: int
     user_id: int
     event_id: int
     seats_booked: int
+    remaining_tickets: int
     booking_time: datetime
 
     model_config = ConfigDict(from_attributes=True)
