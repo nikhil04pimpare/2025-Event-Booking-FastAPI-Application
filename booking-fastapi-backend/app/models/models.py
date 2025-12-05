@@ -10,6 +10,7 @@ Classes:
 """
 
 from sqlalchemy import Column, Date, DateTime, Enum, ForeignKey, Integer, String, func
+from sqlalchemy.orm import relationship
 
 from app.core.database import Base
 from app.schemas.user import UserRole
@@ -84,3 +85,4 @@ class BookingModel(Base):
     seats_booked = Column(Integer)
     remaining_tickets = Column(Integer)
     booking_time = Column(DateTime, default=func.now())
+    event = relationship("EventsModel")

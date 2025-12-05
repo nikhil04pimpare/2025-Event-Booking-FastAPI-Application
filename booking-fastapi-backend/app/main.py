@@ -24,7 +24,13 @@ from app.core.security import (
     verify_password,
 )
 from app.models.models import BookingModel, EventsModel, UserModel
-from app.schemas.booking import BookingResponse, EventBookResponse, EventResponse, Events
+from app.schemas.booking import (
+    BookingHistoryResponse,
+    BookingResponse,
+    EventBookResponse,
+    EventResponse,
+    Events,
+)
 from app.schemas.user import Token, User, UserLogin, UserResponse, UserRole
 
 Base.metadata.create_all(bind=engine)
@@ -189,7 +195,11 @@ def create_event(
 
 
 @app.get("/events", response_model=list[EventResponse], tags=["Events"])
-def get_events(db_session: Session = Depends(get_db)):
+def get_events(
+    db_session: Session = Depends(get_db),
+    name: str | None = None,
+    venue: str | None = None,
+):
     """Retrieve all available events.
 
     Returns a list of all events in the system, including details such as
@@ -197,6 +207,8 @@ def get_events(db_session: Session = Depends(get_db)):
 
     Args:
         db_session: Database session dependency.
+        name: Name of the event
+        venue: Venue of the event
 
     Returns:
         List[EventResponse]: List of all events.
@@ -204,7 +216,15 @@ def get_events(db_session: Session = Depends(get_db)):
     Raises:
         HTTPException: If no events are found.
     """
-    events = db_session.query(EventsModel).all()
+    query = db_session.query(EventsModel)
+    if name:
+        query = query.filter(EventsModel.event_name.ilike(f"%{name}%"))
+
+    if venue:
+        query = query.filter(EventsModel.event_venue.ilike(f"%{venue}%"))
+
+    events = query.all()
+
     if not events:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No events found.")
     return events
@@ -248,8 +268,6 @@ def book_event(
         )
     if event.event_availibility > 0 and event.event_availibility - seats >= 0:
         event.event_availibility = event.event_availibility - seats
-        db_session.commit()
-        db_session.refresh(event)
 
         # Create booking record with remaining tickets after this booking
         booking = BookingModel(
@@ -260,6 +278,7 @@ def book_event(
         )
         db_session.add(booking)
         db_session.commit()
+        db_session.refresh(event)
 
         return event
     else:
@@ -299,4 +318,38 @@ def get_admin_bookings(
     bookings = db_session.query(BookingModel).all()
     if not bookings:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No Bookings found.")
+    return bookings
+
+
+@app.get("/users/me/bookings", response_model=list[BookingHistoryResponse], tags=["User"])
+def get_user_bookings(
+    db_session: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    """Retrieve current user's booking history.
+
+    Returns all bookings made by the authenticated user, including detailed
+    information about each booking and the associated event details.
+
+    Args:
+        db_session: Database session dependency.
+        current_user: Authenticated user from token.
+
+    Returns:
+        List[BookingHistoryResponse]: List of user's booking records with
+                                      nested event information.
+
+    Raises:
+        HTTPException: If no bookings are found for the current user.
+    """
+    bookings = (
+        db_session.query(BookingModel)
+        .join(BookingModel.event)
+        .filter(current_user.id == BookingModel.user_id)
+        .all()
+    )
+
+    if not bookings:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No Bookings found.")
+
     return bookings

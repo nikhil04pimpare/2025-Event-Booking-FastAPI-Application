@@ -37,8 +37,10 @@ docs/
 ## Features
 
 - ✅ User registration & JWT authentication
-- ✅ Event creation & listing
-- ✅ Event booking with inventory tracking
+- ✅ Event creation & listing with search filters
+- ✅ Event booking with automatic inventory tracking
+- ✅ User booking history with event details
+- ✅ Admin booking management and tracking
 - ✅ Role-based access control (Admin, User)
 - ✅ Argon2 password hashing
 - ✅ Code quality tools (Black, isort, Ruff, Mypy)
@@ -54,7 +56,8 @@ docs/
 | POST | `/events` | ✅ | Create event (Admin) |
 | GET | `/events` | ❌ | List events |
 | POST | `/events/{id}/book` | ✅ | Book event |
-| GET | `/admin/bookings` | ✅ | View bookings (Admin) |
+| GET | `/admin/bookings` | ✅ | View all bookings (Admin) |
+| GET | `/users/me/bookings` | ✅ | View my bookings (User) |
 
 See `docs/API.md` for detailed examples.
 
